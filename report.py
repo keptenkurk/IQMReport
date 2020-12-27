@@ -42,7 +42,7 @@ def filewritable(filename):
         f = open(filename, 'w')
         f.close()
     except IOError:
-        print('Kan ' + filename + ' niet schrijven.)
+        print('Kan ' + filename + ' niet schrijven.')
         print('Mogelijk is het bestand geopend in een andere toepassing.')
         return False
     os.remove(filename)
