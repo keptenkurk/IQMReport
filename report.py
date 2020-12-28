@@ -25,6 +25,7 @@ print('GEBRUIK VAN DEZE SOFTWARE IS OP EIGEN RISICO')
 print(' ')
 print('Laden van bibliotheken...')
 
+import sys
 import argparse
 import os
 import pandas as pd
@@ -105,14 +106,14 @@ else:
 if not os.path.exists(sourcefilename):
     print("Het CSV report bestand %s is niet gevonden."
           % (sourcefilename))
-    exit()
+    sys.exit()
 
 if args.destinationfile:
     destinationfilename = args.destination[0]
 else:
     destinationfilename = "report.pdf"
 if not filewritable(destinationfilename):
-    exit()
+    sys.exit()
 
 if args.commandfile:
     commandfilename = args.commandfile[0]
@@ -121,7 +122,7 @@ else:
 if not os.path.exists(commandfilename):
     print("De configuratie JSON '%s' is niet gevonden."
           % (commandfilename))
-    exit()
+    sys.exit()
 
 print('Begin met verwerken IQ Messenger rapport...')
 
@@ -135,7 +136,7 @@ try:
 except Exception as e:
     print("Configfile %s is geen geldig JSON bestand:\n %s"
           % (commandfilename, e))
-    exit()
+    sys.exit()
 
 # read CSV
 try:
@@ -170,7 +171,7 @@ except:
     print("%s is geen geldig IQ Messenger CSV report bestand."
           % (sourcefilename))
     print("Verwerking gestopt")
-    exit()
+    sys.exit()
 
 print('Genereren PDF...')
 with PdfPages('Report.pdf') as pdf:
