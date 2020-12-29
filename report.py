@@ -69,11 +69,15 @@ def which_escalation(row):
 def parse_message(rowmessage):
     global conf
     splitmsg = rowmessage.split(' ')
+    msglen = len(splitmsg)
     alarm_type = "Onbekend"
     alarm_loc = "Onbekend"
     for msg in conf["messages"]:
         # check for keyword
-        if splitmsg[msg["position"]] == msg["message"]:
+        if (((msg["position"] >= 0) and 
+           (splitmsg[msg["position"]] == msg["message"])) or
+           ((msg["position"] < 0) and 
+           (splitmsg[msg["position"] + msglen] == msg["message"]))):
             alarm_type = msg["Alarm_Type"]
             if msg["Alarm_Loc_from"] == "Action Device Name":
                 alarm_loc = "Action Device Name"
@@ -179,69 +183,84 @@ with PdfPages('Report.pdf') as pdf:
     sns.set_context("paper")
 
     # Number of alarms per room stacked by alarmtype
-    df_alarms.groupby(['Location', 'Alarm Type']).size().unstack().\
-        plot(kind='barh', stacked=True, width=0.8, fontsize=6)
-    plt.title(conf["klantnaam"] + '\nTotaal meldingen per locatie van ' +
-              date_start + ' tot ' + date_stop, loc='left')
-    plt.legend(title='Alarmtype', loc='upper right')
-    plt.ylabel('Locatie')
-    plt.xlabel('Aantal meldingen')
-    plt.tight_layout()
-    pdf.savefig()
-    plt.close
+    try:
+        df_alarms.groupby(['Location', 'Alarm Type']).size().unstack().\
+            plot(kind='barh', stacked=True, width=0.8, fontsize=6)
+        plt.title(conf["klantnaam"] + '\nTotaal meldingen per locatie van ' +
+                  date_start + ' tot ' + date_stop, loc='left')
+        plt.legend(title='Alarmtype', loc='upper right')
+        plt.ylabel('Locatie')
+        plt.xlabel('Aantal meldingen')
+        plt.tight_layout()
+        pdf.savefig()
+        plt.close
+    except:
+        print("Fout bij het plotten van Alarmen per Locatie. Grafiek overgeslagen.")
 
     # Set Action Date as index for the alarms table.
     # This enables graphing daily counts
     df_alarms = df_alarms.set_index('Action Date')
 
     # Total Number of alarms per day stacked
-    df_alarms.groupby([df_alarms.index.date, 'Alarm Type']).size().unstack().\
-        plot(kind='bar', stacked=True)
-    plt.title(conf["klantnaam"] + '\nTotaal aantal meldingen per dag van ' +
-              date_start + ' tot ' + date_stop, loc='left')
-    plt.legend(title='Alarmtype', loc='upper right')
-    plt.xlabel('Datum')
-    plt.ylabel('Aantal meldingen')
-    plt.tight_layout()
-    pdf.savefig()
-    plt.close
+    try:
+        df_alarms.groupby([df_alarms.index.date, 'Alarm Type']).size().unstack().\
+            plot(kind='bar', stacked=True)
+        plt.title(conf["klantnaam"] + '\nTotaal aantal meldingen per dag van ' +
+                  date_start + ' tot ' + date_stop, loc='left')
+        plt.legend(title='Alarmtype', loc='upper right')
+        plt.xlabel('Datum')
+        plt.ylabel('Aantal meldingen')
+        plt.tight_layout()
+        pdf.savefig()
+        plt.close
+    except:
+        print("Fout bij het plotten van Alarmen per dag. Grafiek overgeslagen.")
 
     # Total Number of alarms per hour of day stacked
-    df_alarms.groupby([df_alarms.index.hour, 'Alarm Type']).size().unstack().\
-        plot(kind='bar', stacked=True)
-    plt.title(conf["klantnaam"] + '\nTotaal aantal meldingen per uur van de dag van ' +
-              date_start + ' tot ' + date_stop, loc='left')
-    plt.legend(title='Alarmtype', loc='upper right')
-    plt.xlabel('Uur')
-    plt.ylabel('Aantal meldingen')
-    plt.tight_layout()
-    pdf.savefig()
-    plt.close
+    try:
+        df_alarms.groupby([df_alarms.index.hour, 'Alarm Type']).size().unstack().\
+            plot(kind='bar', stacked=True)
+        plt.title(conf["klantnaam"] + '\nTotaal aantal meldingen per uur van de dag van ' +
+                  date_start + ' tot ' + date_stop, loc='left')
+        plt.legend(title='Alarmtype', loc='upper right')
+        plt.xlabel('Uur')
+        plt.ylabel('Aantal meldingen')
+        plt.tight_layout()
+        pdf.savefig()
+        plt.close
+    except:
+        print("Fout bij het plotten van alarmen per uur. Grafiek overgeslagen.")
 
     # Escalation state of alarms per day
-    df_alarms.groupby([df_alarms.index.date, 'Escalation']).size().\
-        unstack().plot(kind='bar', stacked=True)
-    plt.title(conf["klantnaam"] + '\nEscalatie niveau per dag van ' +
-              date_start + ' tot ' + date_stop, loc='left')
-    plt.legend(title='Escalatieniveau', loc='upper right')
-    plt.xlabel('Datum')
-    plt.ylabel('Aantal')
-    plt.tight_layout()
-    pdf.savefig()
-    plt.close
+    try:
+        df_alarms.groupby([df_alarms.index.date, 'Escalation']).size().\
+            unstack().plot(kind='bar', stacked=True)
+        plt.title(conf["klantnaam"] + '\nEscalatie niveau per dag van ' +
+                  date_start + ' tot ' + date_stop, loc='left')
+        plt.legend(title='Escalatieniveau', loc='upper right')
+        plt.xlabel('Datum')
+        plt.ylabel('Aantal')
+        plt.tight_layout()
+        pdf.savefig()
+        plt.close
+    except:
+        print("Fout bij plotten van escalatie niveaus per dag. Grafiek overgeslagen.")
 
     # Respose per employee
-    df_resp = df.loc[(df['Action Type'] == 'Received response')]
-    df_resp.groupby(['Action Device Name', 'Action Response']).size().\
-        unstack().plot(kind='barh', stacked=True)
-    plt.title(conf["klantnaam"] + '\nOntvangen reponses van ' + date_start +
-              ' tot ' + date_stop, loc='left')
-    plt.legend(title='Responsetype', loc='upper right')
-    plt.ylabel('Medewerker')
-    plt.xlabel('Response')
-    plt.tight_layout()
-    pdf.savefig()
-    plt.close
+    try:
+        df_resp = df.loc[(df['Action Type'] == 'Received response')]
+        df_resp.groupby(['Action Device Name', 'Action Response']).size().\
+            unstack().plot(kind='barh', stacked=True)
+        plt.title(conf["klantnaam"] + '\nOntvangen reponses van ' + date_start +
+                  ' tot ' + date_stop, loc='left')
+        plt.legend(title='Responsetype', loc='upper right')
+        plt.ylabel('Medewerker')
+        plt.xlabel('Response')
+        plt.tight_layout()
+        pdf.savefig()
+        plt.close
+    except:
+        print("Fout bij het plotten van responses per medewerker. Grafiek overgeslagen.")
 
 end = time.time()
 exectime = round(1000*(end-start))
