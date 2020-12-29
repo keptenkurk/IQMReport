@@ -78,6 +78,10 @@ Als het handiger is om voor de locatie het veld “Action Device Name” te gebr
           "Alarm_Loc_from": "Action Device Name", 
           "Alarm_Loc_to": 4 
        } 
+       ],
+      "interfaces" : [
+          "sensara"
+       ],
       "escalations": [ 
         {
           "name": "1.Primair", 
