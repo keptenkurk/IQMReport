@@ -52,7 +52,7 @@ Betekent dit dat:
 Het soort alarm is drukknop_actief en heeft de positie index 0 in het array van de melding (array start bij 0). Het alarmtype willen we in de PDF “Drukknop” noemen. De unieke locatie wordt in de PDF “RH DK3 KMR K382” genoemd (posities 1 tot 5 in het array, dus 1 t/m 4).  
 Als het handiger is om voor de locatie het veld “Action Device Name” te gebruiken (bijv. wanneer deze een gebruikersnaam heeft met soms 2 en soms 3 delen) vul je bij “Alarm_Device_from”: “Action Device Name” in. De Alarm_Device_to waarde wordt dan genegeerd. 
 
-# Voorbeeld JSON: 
+# Voorbeeld messages JSON: 
 
     { 
       "klantnaam" : "Careforyou", 
