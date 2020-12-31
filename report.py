@@ -280,7 +280,7 @@ with PdfPages('Report.pdf') as pdf:
 
     # Respose per employee
     try:
-        if conf["IncludeOfflineUser"] == "Ja":
+        if conf["includeOfflineUser"] == "Ja":
             df_resp = df.loc[(df['Action Type'] == 'Received response')] 
         else:
             df_resp = df.loc[(df['Action Type'] == 'Received response') & 
