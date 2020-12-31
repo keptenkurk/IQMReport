@@ -49,11 +49,34 @@ def filewritable(filename):
     os.remove(filename)
     return True
 
+# Print iterations progress
+def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+        printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + '-' * (length - filledLength)
+    print(f'\r{prefix} |{bar}| {percent}% {suffix}', end = printEnd)
+
 
 # Calculate escalation stage from time between start/finish
 def which_escalation(row):
     global df
     global conf
+    global count
+    global size
+    printProgressBar(count, size, prefix = 'Progress:', suffix = 'Complete', length = 50)
+    count += 1
     df_tmp = df.loc[(df['Flow UID'] == row['Flow UID'])]
     runtime = df_tmp['Action Date'].max() - df_tmp['Action Date'].min()
     escalation = "Unknown"
@@ -68,15 +91,18 @@ def which_escalation(row):
 # in the conf json. Return corresponding Location and AlarmType
 def parse_message(rowmessage):
     global conf
+    global size
+    global count
+    printProgressBar(count, size, prefix = 'Progress:', suffix = 'Complete', length = 50)
     splitmsg = rowmessage.split(' ')
     msglen = len(splitmsg)
     alarm_type = "Onbekend"
     alarm_loc = "Onbekend"
     for msg in conf["messages"]:
-        # check for keyword
-        if (((msg["position"] >= 0) and 
+        # check for keyword and keep indexes witin bounds
+        if (((0 <= msg["position"] < msglen) and 
            (splitmsg[msg["position"]] == msg["message"])) or
-           ((msg["position"] < 0) and 
+           ((-msglen <= msg["position"] < 0) and 
            (splitmsg[msg["position"] + msglen] == msg["message"]))):
             alarm_type = msg["Alarm_Type"]
             if msg["Alarm_Loc_from"] == "Action Device Name":
@@ -86,6 +112,7 @@ def parse_message(rowmessage):
                                               msg["Alarm_Loc_to"]])
     if alarm_type == 'Onbekend':
         print('Regel met onbekend alarmbericht: ' + rowmessage)
+    count += 1
     return alarm_loc, alarm_type
 
 
@@ -145,38 +172,43 @@ except Exception as e:
 # read CSV
 try:
     df = pd.read_csv(sourcefilename)
-
-    # Get rid of  unneeded columns
-    df = df.drop(columns=['Action Device Code', 'Action Service Id'])
-    # Change Action date string to proper timedate format
-    df['Action Date'] = pd.to_datetime(df['Action Date'],
-                                       format="%d.%m.%Y %H:%M:%S.%f")
-    # create new table with only start of alarms and any of the
-    # interfaces & flowgroups listed in config JSON
-    df_alarms = df.loc[(df['Action Type'] == 'Started') &
-                       (df['Action Device Item Type'].isin(conf["interfaces"])) &
-                       (df['Flow Group'].isin(conf['flowgroups']))]
-
-    # Create new Location, AlarmType and Escalation columns based on data
-    # found in the Message and JSON configuration parameters. Optionally
-    # ignore "Action Device Name" column as the newly crafted Location
-    # based on the message is a more generic solution over the projects
-
-    warnings.filterwarnings("ignore", category=SettingWithCopyWarning)
-    df_alarms['Location'], df_alarms['Alarm Type'] = \
-        zip(*df_alarms['Message'].map(parse_message))
-    df_alarms.loc[df_alarms['Location'] == 'Action Device Name', 'Location'] = \
-        df_alarms['Action Device Name']
-    df_alarms['Escalation'] = df_alarms.apply(which_escalation, axis=1)
-
-    date_start = df_alarms['Action Date'].min().strftime('%d/%m/%Y %H:%M')
-    date_stop = df_alarms['Action Date'].max().strftime('%d/%m/%Y %H:%M')
 except:
     print("%s is geen geldig IQ Messenger CSV report bestand."
           % (sourcefilename))
     print("Verwerking gestopt")
     sys.exit()
 
+# Get rid of  unneeded columns
+df = df.drop(columns=['Action Device Code', 'Action Service Id'])
+# Change Action date string to proper timedate format
+df['Action Date'] = pd.to_datetime(df['Action Date'],
+                                   format="%d.%m.%Y %H:%M:%S.%f")
+# create new table with only start of alarms and any of the
+# interfaces & flowgroups listed in config JSON
+df_alarms = df.loc[(df['Action Type'] == 'Started') &
+                   (df['Action Device Item Type'].isin(conf["interfaces"])) &
+                   (df['Flow Group'].isin(conf['flowgroups']))]
+
+size = 2 * len(df_alarms.index)
+count = 0
+printProgressBar(count, size, prefix = 'Progress:', suffix = 'Complete', length = 50)
+
+# Create new Location, AlarmType and Escalation columns based on data
+# found in the Message and JSON configuration parameters. Optionally
+# ignore "Action Device Name" column as the newly crafted Location
+# based on the message is a more generic solution over the projects
+
+warnings.filterwarnings("ignore", category=SettingWithCopyWarning)
+df_alarms['Location'], df_alarms['Alarm Type'] = \
+    zip(*df_alarms['Message'].map(parse_message))
+df_alarms.loc[df_alarms['Location'] == 'Action Device Name', 'Location'] = \
+    df_alarms['Action Device Name']
+df_alarms['Escalation'] = df_alarms.apply(which_escalation, axis=1)
+
+date_start = df_alarms['Action Date'].min().strftime('%d/%m/%Y %H:%M')
+date_stop = df_alarms['Action Date'].max().strftime('%d/%m/%Y %H:%M')
+
+print()
 print('Genereren PDF...')
 with PdfPages('Report.pdf') as pdf:
     sns.set(style='darkgrid', rc={'figure.figsize': (8.27, 11.7)})
@@ -248,7 +280,11 @@ with PdfPages('Report.pdf') as pdf:
 
     # Respose per employee
     try:
-        df_resp = df.loc[(df['Action Type'] == 'Received response')]
+        if conf["IncludeOfflineUser"] == "Ja":
+            df_resp = df.loc[(df['Action Type'] == 'Received response')] 
+        else:
+            df_resp = df.loc[(df['Action Type'] == 'Received response') & 
+                (df['Action Response'] != 'User is offline')]             
         df_resp.groupby(['Action Device Name', 'Action Response']).size().\
             unstack().plot(kind='barh', stacked=True)
         plt.title(conf["klantnaam"] + '\nOntvangen reponses van ' + date_start +
