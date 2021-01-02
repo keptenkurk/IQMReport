@@ -190,6 +190,9 @@ df_alarms = df.loc[(df['Action Type'] == 'Started') &
                    (df['Flow Group'].isin(conf['flowgroups']))]
 
 size = 2 * len(df_alarms.index)
+if size == 0:
+    print("Geen data in selectie gevonden.")
+    sys.exit()
 count = 0
 printProgressBar(count, size, prefix = 'Progress:', suffix = 'Complete', length = 50)
 
