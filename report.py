@@ -140,7 +140,7 @@ if not os.path.exists(sourcefilename):
     sys.exit()
 
 if args.destinationfile:
-    destinationfilename = args.destination[0]
+    destinationfilename = args.destinationfile[0]
 else:
     destinationfilename = "report.pdf"
 if not filewritable(destinationfilename):
@@ -213,7 +213,7 @@ date_stop = df_alarms['Action Date'].max().strftime('%d/%m/%Y %H:%M')
 
 print()
 print('Genereren PDF...')
-with PdfPages('Report.pdf') as pdf:
+with PdfPages(destinationfilename) as pdf:
     sns.set(style='darkgrid', rc={'figure.figsize': (8.27, 11.7)})
     sns.set_context("paper")
 
