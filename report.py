@@ -70,7 +70,7 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
 
 
 # Calculate escalation stage from time between start/finish
-def which_escalation(row):
+def get_runtime(row):
     global df
     global conf
     global count
@@ -79,13 +79,25 @@ def which_escalation(row):
     count += 1
     df_tmp = df.loc[(df['Flow UID'] == row['Flow UID'])]
     runtime = df_tmp['Action Date'].max() - df_tmp['Action Date'].min()
+    # sometimes runtime exceeds the maximum time a flow could theoretically run
+    # so top it off to the "no response" run time
+    if runtime.seconds > conf["escalations"][-1]["time"]:
+        runtime = datetime.timedelta(seconds = conf["escalations"][-1]["time"]) 
+    return runtime.seconds
+
+def get_escalation(row):
+    global df
+    global conf
+    global count
+    global size
+    printProgressBar(count, size, prefix = 'Progress:', suffix = 'Complete', length = 50)
+    count += 1
     escalation = "Unknown"
     for i in conf["escalations"]:
-        if runtime.seconds < i["time"]:
+        if row['Runtime'] < i["time"]:
             escalation = i["name"]
             return escalation
     return escalation
-
 
 # split message in parts and check it for any of the available translations
 # in the conf json. Return corresponding Location and AlarmType
@@ -189,7 +201,7 @@ df_alarms = df.loc[(df['Action Type'] == 'Started') &
                    (df['Action Device Item Type'].isin(conf["interfaces"])) &
                    (df['Flow Group'].isin(conf['flowgroups']))]
 
-size = 2 * len(df_alarms.index)
+size = 3 * len(df_alarms.index)
 if size == 0:
     print("Geen data in selectie gevonden.")
     sys.exit()
@@ -206,7 +218,9 @@ df_alarms['Location'], df_alarms['Alarm Type'] = \
     zip(*df_alarms['Message'].map(parse_message))
 df_alarms.loc[df_alarms['Location'] == 'Action Device Name', 'Location'] = \
     df_alarms['Action Device Name']
-df_alarms['Escalation'] = df_alarms.apply(which_escalation, axis=1)
+
+df_alarms['Runtime'] = df_alarms.apply(get_runtime, axis=1)
+df_alarms['Escalation'] = df_alarms.apply(get_escalation, axis=1)
 
 date_start = df_alarms['Action Date'].min().strftime('%d/%m/%Y %H:%M')
 date_stop = df_alarms['Action Date'].max().strftime('%d/%m/%Y %H:%M')
@@ -281,7 +295,7 @@ with PdfPages(destinationfilename) as pdf:
     except:
         print("Fout bij plotten van escalatie niveaus per dag. Grafiek overgeslagen.")
 
-    # Respose per employee
+    # Response per employee
     try:
         if conf["includeOfflineUser"] == "Ja":
             df_resp = df.loc[(df['Action Type'] == 'Received response')] 
@@ -300,6 +314,17 @@ with PdfPages(destinationfilename) as pdf:
         plt.close
     except:
         print("Fout bij het plotten van responses per medewerker. Grafiek overgeslagen.")
+        
+    # Average responsetime and number of alarms downsampled per hour 
+    try:
+        df_run = df_alarms.resample("1h").agg({'Runtime':'mean','Action Type':'count'})
+        df_run.plot(subplots=True, layout=(2,1), style=['r', 'b'], grid=True, title=['Gem.Responsetijd over 1u','Aantal meldingen in 1u'])   
+        plt.xlabel('Tijd')
+        plt.tight_layout()
+        pdf.savefig()
+        plt.close
+    except:
+        print("Fout bij het plotten van responsetijd per uur. Grafiek overgeslagen.")
 
 end = time.time()
 exectime = round(1000*(end-start))
